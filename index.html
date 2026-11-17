@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MiniTask — Gestor de Tareas Cloud con Supabase, GitHub y Vercel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="9 11 12 14 22 4"></polyline>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">MiniTask</h1>
+          <p class="brand-subtitle">Supabase &bull; GitHub &bull; Vercel &bull; MCP</p>
+        </div>
+      </div>
+
+      <!-- Auth & Session Indicator -->
+      <div class="session-badge" id="session-badge">
+        <div class="status-dot"></div>
+        <div class="session-info">
+          <span class="session-label">Sesión Anónima (RLS)</span>
+          <span class="session-uid" id="session-uid" title="Identificador único del usuario anónimo">Iniciando...</span>
+        </div>
+        <button id="btn-switch-user" class="btn-icon" title="Simular otro usuario anónimo para verificar RLS" aria-label="Cambiar usuario">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Card -->
+    <main class="card">
+      <!-- Input de Nueva Tarea -->
+      <form id="task-form" class="task-form">
+        <div class="input-group">
+          <input 
+            type="text" 
+            id="task-input" 
+            class="task-input" 
+            placeholder="¿Qué tarea tienes pendiente hoy?" 
+            autocomplete="off" 
+            maxlength="140"
+            required 
+          />
+          <button type="submit" id="btn-add-task" class="btn btn-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>Añadir</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Barra de Filtros y Contador -->
+      <div class="toolbar">
+        <div class="filters" role="tablist" aria-label="Filtro de tareas">
+          <button class="filter-btn active" data-filter="all" role="tab" aria-selected="true">
+            Todas <span class="badge" id="count-all">0</span>
+          </button>
+          <button class="filter-btn" data-filter="pending" role="tab" aria-selected="false">
+            Pendientes <span class="badge badge-warning" id="count-pending">0</span>
+          </button>
+          <button class="filter-btn" data-filter="completed" role="tab" aria-selected="false">
+            Completadas <span class="badge badge-success" id="count-completed">0</span>
+          </button>
+        </div>
+
+        <div class="status-summary" id="pending-summary">
+          <span id="pending-count-text">0 tareas pendientes</span>
+        </div>
+      </div>
+
+      <!-- Notificaciones / Alertas de Error o Configuración -->
+      <div id="alert-box" class="alert-box hidden" role="alert"></div>
+
+      <!-- Lista de Tareas y Estados -->
+      <section class="task-list-section">
+        <!-- Spinner de carga -->
+        <div id="loading-state" class="loading-state">
+          <div class="spinner"></div>
+          <p>Conectando con Supabase...</p>
+        </div>
+
+        <!-- Lista de tareas -->
+        <ul id="task-list" class="task-list hidden" aria-live="polite"></ul>
+
+        <!-- Estado vacío -->
+        <div id="empty-state" class="empty-state hidden">
+          <div class="empty-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+              <path d="m9 12 2 2 4-4"></path>
+            </svg>
+          </div>
+          <h3 id="empty-title">No hay tareas pendientes</h3>
+          <p id="empty-desc">Crea una tarea arriba para comenzar a organizarte.</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer Educativo con estado de plataformas -->
+    <footer class="app-footer">
+      <div class="integration-pills">
+        <span class="pill pill-gh" title="Control de versiones y repositorio de código">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+          GitHub MCP
+        </span>
+        <span class="pill pill-sb" title="PostgreSQL con Row Level Security y Auth Anónimo">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21.362 9.354H12V.312a.312.312 0 0 0-.532-.22L1.692 9.87a.936.936 0 0 0 .638 1.6h9.362v9.042a.312.312 0 0 0 .532.22l9.776-9.778a.936.936 0 0 0-.638-1.6z"/></svg>
+          Supabase MCP
+        </span>
+        <span class="pill pill-vc" title="Despliegue y hosting continuo en Edge Network">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M24 22.525H0l12-21.05 12 21.05z"/></svg>
+          Vercel MCP
+        </span>
+      </div>
+      <p class="footer-note">MiniTask &bull; Arquitectura moderna Cloud-Native con RLS y CI/CD</p>
+    </footer>
+  </div>
+
+  <!-- Modal de Confirmación de Eliminación -->
+  <div id="delete-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-icon warning">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </div>
+        <div>
+          <h3 id="modal-title">¿Eliminar tarea?</h3>
+          <p id="modal-desc">Esta acción no se puede deshacer. Se eliminará permanentemente de Supabase.</p>
+        </div>
+      </div>
+      <div class="modal-task-preview" id="modal-task-text">"Título de la tarea"</div>
+      <div class="modal-actions">
+        <button id="btn-cancel-delete" class="btn btn-secondary">Cancelar</button>
+        <button id="btn-confirm-delete" class="btn btn-danger">Sí, eliminar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenedor de Toasts flotantes -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
